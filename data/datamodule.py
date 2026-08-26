@@ -1,10 +1,10 @@
 import math
 
 import lightning as L
-from datasets import WindowDataset
 from torch.utils.data import DataLoader, Dataset
 
 from config import Config
+from data.datasets import WindowDataset
 from data.memmap import get_tokenized_data
 
 

@@ -320,27 +320,64 @@ def test_forward_rejects_wrong_d_model(attn):
 
 
 # --------------------------------------------------------------------------
-# known bugs: these fail on purpose and stay red until the bug is fixed
+# dtype casts: Module.to() must not silently destroy the RoPE tables
 # --------------------------------------------------------------------------
 
+# nn.Module.to(dtype) converts a tensor when it is_floating_point() OR
+# is_complex(), but hands it the REAL dtype it was given. A complex64 buffer
+# therefore becomes a real tensor and loses its imaginary part, with only a
+# UserWarning. RoPE would degenerate from a rotation into a per-pair rescaling
+# by cos(t * theta): finite numbers, no exception, silently wrong training.
+# apply_rope guards against that, and these tests pin the guard.
+CAST_DTYPES = [torch.float32, torch.float64, torch.bfloat16, torch.float16]
 
-def test_freqs_cis_stays_complex_after_a_dtype_cast(attn):
-    """KNOWN BUG. freqs_cis is a complex64 buffer, and nn.Module.to(bfloat16)
-    casts it to a REAL bfloat16 tensor, silently dropping the imaginary part
-    (torch only warns). RoPE then degenerates from a rotation into a per-pair
-    rescaling by cos(t * theta)."""
-    assert attn.to(torch.bfloat16).freqs_cis.is_complex()
+
+@pytest.mark.parametrize("dtype", CAST_DTYPES)
+def test_apply_rope_rejects_a_module_wide_dtype_cast(attn, dtype):
+    """Note this fires even for .to(torch.float32), which reads like a no-op
+    but destroys the buffer exactly the same way."""
+    attn = attn.to(dtype)
+    x = torch.randn(1, N_HEADS, 16, attn.d_head).to(dtype)
+    with pytest.raises(AssertionError, match="freqs_cis"):
+        attn.apply_rope(x)
 
 
-def test_rope_still_rotates_after_a_half_precision_cast(attn):
-    """KNOWN BUG, same root cause as the test above. This is the symptom it
-    produces downstream: mixed-precision runs usually start with
-    model.to(bfloat16), after which RoPE stops preserving norms and stops
-    encoding relative position at all."""
-    attn_bf16 = attn.to(torch.bfloat16)
-    x = torch.randn(1, N_HEADS, 16, attn.d_head)
-    out = attn_bf16.apply_rope(x.to(torch.bfloat16)).float()
-    ratio = out.norm(dim=-1) / x.norm(dim=-1)
+@pytest.mark.parametrize("dtype", CAST_DTYPES)
+def test_forward_rejects_a_module_wide_dtype_cast(attn, dtype):
+    """The guard must be reachable through the normal call path, not only
+    when apply_rope is poked directly."""
+    attn = attn.to(dtype)
+    x = torch.randn(2, 16, D_MODEL).to(dtype)
+    with pytest.raises(AssertionError, match="freqs_cis"):
+        attn(x)
+
+
+@pytest.mark.parametrize("cast", ["float", "double", "half", "bfloat16"])
+def test_dtype_convenience_methods_keep_the_buffer_complex(attn, cast):
+    """The asymmetry worth remembering: Module.float()/double()/half()/
+    bfloat16() filter on is_floating_point(), which is False for a complex
+    tensor, so they skip freqs_cis and RoPE keeps working. Only the generic
+    .to(dtype) has the `or is_complex()` branch. So .bfloat16() is safe
+    exactly where .to(torch.bfloat16) is not."""
+    attn = getattr(attn, cast)()
+    assert attn.freqs_cis.is_complex()
+    x = torch.randn(1, N_HEADS, 16, attn.d_head).to(attn.W_Q.weight.dtype)
+    assert torch.isfinite(attn.apply_rope(x).float()).all()
+
+
+def test_device_move_keeps_the_buffer_complex(attn):
+    """A device-only .to() passes dtype=None, so the buffer is untouched."""
+    assert attn.to("cpu").freqs_cis.is_complex()
+
+
+def test_a_low_precision_input_into_an_fp32_module_is_fine(attn):
+    """The guard is about casting the *module*. Feeding bf16 activations to an
+    fp32 module is the ordinary mixed-precision path and must keep working --
+    RoPE still rotates, so norms survive to within bf16 rounding."""
+    x = torch.randn(1, N_HEADS, 16, attn.d_head, dtype=torch.bfloat16)
+    out = attn.apply_rope(x)
+    assert out.dtype == torch.bfloat16
+    ratio = out.float().norm(dim=-1) / x.float().norm(dim=-1)
     assert torch.allclose(ratio, torch.ones_like(ratio), atol=2e-2)
 
 

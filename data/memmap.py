@@ -30,7 +30,8 @@ def create_tokenized_memmap(
     permutation = np.random.default_rng(PROJECT_SEED).permutation(
         len(tiny_stories[split]["text"])
     )
-    perm_indices = np.array_split(permutation, len(permutation) // encoding_batch_size)
+    num_batches = len(permutation) // encoding_batch_size or 1
+    perm_indices = np.array_split(permutation, num_batches)
     progress_bar = tqdm(desc="Tokenizing data", total=len(tiny_stories[split]["text"]))
 
     with open(tokens_path, "wb") as f:

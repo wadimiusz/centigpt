@@ -10,10 +10,15 @@ class WindowDataset(Dataset):
         self.window_size = window_size
 
     def __len__(self):
-        return (len(self.tokens) - 1) // self.window_size
+        num_windows = (len(self.tokens) - 1) // self.window_size
         # so that the last window has full target
+        return max(0, num_windows)
 
     def __getitem__(self, idx):
+        if not 0 <= idx < len(self):
+            raise IndexError(
+                f"Index {idx} is out of bounds for window dataset of size {len(self)}"
+            )
         tokens_np = self.tokens[
             idx * self.window_size : (idx + 1) * self.window_size + 1
         ]

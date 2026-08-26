@@ -44,3 +44,39 @@ def test_config_is_frozen():
 def test_d_hidden_is_derived_not_stored():
     with pytest.raises(TypeError):
         Config(d_hidden=999)  # type: ignore[call-arg]
+
+
+# --------------------------------------------------------------------------
+# data pipeline settings
+# --------------------------------------------------------------------------
+
+
+def test_data_pipeline_defaults():
+    cfg = Config()
+    assert cfg.data_fraction == 1.0
+    assert cfg.packing == "stream"
+    assert cfg.batch_size == 32
+
+
+def test_packing_literal_lists_every_mode_the_datamodule_knows():
+    """The Literal and DataModule's NotImplementedError have to stay in sync:
+    a mode listed here but unhandled there is a crash at training start."""
+    import typing
+
+    modes = typing.get_type_hints(Config)["packing"]
+    assert set(typing.get_args(modes)) == {"stream", "padded", "block_diagonal"}
+
+
+# --------------------------------------------------------------------------
+# missing guards
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("fraction", [-0.5, 0.0, 1.5])
+def test_rejects_a_data_fraction_outside_the_unit_interval(fraction):
+    """Nothing validates this. A negative fraction is the nasty one: setup()
+    computes floor(num_stories * fraction) and indexes offsets with it, so
+    -0.5 silently wraps around to a story near the *start* of the file and the
+    0 < last_story_end assert happily passes on the wrong slice."""
+    with pytest.raises((ValueError, AssertionError)):
+        Config(data_fraction=fraction)

@@ -213,3 +213,13 @@ def test_every_parameter_receives_gradient(gpt):
         if param.grad is None or param.grad.abs().max() == 0
     ]
     assert dead == []
+
+
+def test_module_wide_dtype_cast_is_rejected(gpt):
+    """model.to(torch.bfloat16) is the usual opening move for mixed-precision
+    training, and it destroys the complex RoPE tables in every attention layer
+    at once. The guard inside apply_rope turns that into a loud failure rather
+    than a model that trains badly for no visible reason."""
+    gpt = gpt.to(torch.bfloat16)
+    with pytest.raises(AssertionError, match="freqs_cis"):
+        gpt(tokens(1, 8))

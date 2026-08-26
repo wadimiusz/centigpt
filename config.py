@@ -19,3 +19,8 @@ class Config:
     @property
     def d_hidden(self):  # наше правило ⌈8d/3⌉→кратно 128
         return ((8 * self.d_model // 3) + 127) // 128 * 128
+
+    def __post_init__(self):
+        assert 0 < self.data_fraction <= 1.0, (
+            f"data_fraction must be between 0 and 1 but is {self.data_fraction}"
+        )
