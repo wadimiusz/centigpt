@@ -1,0 +1,2 @@
+PROJECT_SEED = 0
+TINY_STORIES_DATASET_NAME = "roneneldan/TinyStories"

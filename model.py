@@ -1,8 +1,9 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from config import Config
+
 
 class CausalMultiheadAttention(nn.Module):
     freqs_cis: torch.Tensor
@@ -14,6 +15,9 @@ class CausalMultiheadAttention(nn.Module):
         self.d_model = cfg.d_model
         self.n_heads = cfg.n_heads
         self.d_head = cfg.d_model // cfg.n_heads
+        assert self.d_head % 2 == 0, (
+            f"d_head must be divisible by 2 but is {self.d_head}"
+        )
 
         self.W_Q = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
         self.W_K = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
@@ -62,6 +66,7 @@ class CausalMultiheadAttention(nn.Module):
         return self.W_O(attn_before_proj)
 
     def apply_rope(self, x: torch.Tensor) -> torch.Tensor:
+        assert self.freqs_cis.is_complex(), "freqs_cis lost dtype"
         orig_dtype = x.dtype
         batch_size, n_heads, seq_len, d_head = x.size()
         assert d_head == self.d_head, (
@@ -123,7 +128,7 @@ class GPT(nn.Module):
     def _init_weights(self, module: nn.Module) -> None:
         if isinstance(module, nn.Linear):
             input_dim = module.in_features
-            std = input_dim ** -0.5
+            std = input_dim**-0.5
             if getattr(module, "_is_residual_proj", False):
                 std *= (2 * self.cfg.n_layers) ** -0.5
             nn.init.normal_(module.weight, mean=0.0, std=std)

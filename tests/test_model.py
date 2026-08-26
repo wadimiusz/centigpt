@@ -3,8 +3,8 @@ import math
 import pytest
 import torch
 
-from model import CausalMultiheadAttention
 from config import Config
+from model import CausalMultiheadAttention
 
 D_MODEL = 32
 N_HEADS = 4
@@ -18,6 +18,7 @@ CFG = Config(
     max_seq_len=MAX_SEQ_LEN,
     rope_base=ROPE_BASE,
 )
+
 
 @pytest.fixture
 def attn():
@@ -319,29 +320,23 @@ def test_forward_rejects_wrong_d_model(attn):
 
 
 # --------------------------------------------------------------------------
-# known bugs, kept as executable documentation
+# known bugs: these fail on purpose and stay red until the bug is fixed
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="freqs_cis is a complex64 buffer, and nn.Module.to(bfloat16) casts "
-    "it to a REAL bfloat16 tensor, silently dropping the imaginary part "
-    "(torch only warns). RoPE then degenerates from a rotation into a "
-    "per-pair rescaling by cos(t*theta).",
-)
 def test_freqs_cis_stays_complex_after_a_dtype_cast(attn):
+    """KNOWN BUG. freqs_cis is a complex64 buffer, and nn.Module.to(bfloat16)
+    casts it to a REAL bfloat16 tensor, silently dropping the imaginary part
+    (torch only warns). RoPE then degenerates from a rotation into a per-pair
+    rescaling by cos(t * theta)."""
     assert attn.to(torch.bfloat16).freqs_cis.is_complex()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="same root cause as test_freqs_cis_stays_complex_after_a_dtype_cast",
-)
 def test_rope_still_rotates_after_a_half_precision_cast(attn):
-    """The symptom the buffer bug produces downstream: mixed-precision runs
-    usually start with model.to(bfloat16), after which RoPE stops preserving
-    norms and stops encoding relative position at all."""
+    """KNOWN BUG, same root cause as the test above. This is the symptom it
+    produces downstream: mixed-precision runs usually start with
+    model.to(bfloat16), after which RoPE stops preserving norms and stops
+    encoding relative position at all."""
     attn_bf16 = attn.to(torch.bfloat16)
     x = torch.randn(1, N_HEADS, 16, attn.d_head)
     out = attn_bf16.apply_rope(x.to(torch.bfloat16)).float()
@@ -349,12 +344,6 @@ def test_rope_still_rotates_after_a_half_precision_cast(attn):
     assert torch.allclose(ratio, torch.ones_like(ratio), atol=2e-2)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="__init__ asserts d_model % n_heads == 0 but never that d_head is "
-    "even. An odd d_head survives construction and blows up much later "
-    "inside apply_rope with an opaque reshape RuntimeError.",
-)
 def test_rejects_an_odd_d_head():
     """RoPE rotates channels in pairs, so d_head must be divisible by 2."""
     with pytest.raises(AssertionError):

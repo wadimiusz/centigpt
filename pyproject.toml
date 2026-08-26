@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "datasets>=5.0.1",
+    "lightning>=2.6.5",
+    "loguru>=0.7.3",
     "numpy>=2.5.2",
+    "tokenizers>=0.22.2",
     "torch>=2.13.0",
     "transformers>=5.15.1",
 ]
@@ -13,6 +17,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "ruff>=0.16.4",
 ]
@@ -27,6 +32,15 @@ dev = [
 line-length = 88
 
 [tool.ruff.lint]
+# Сознательно выключенные правила.
+ignore = [
+    # C408 требует переписывать list()/dict()/tuple() в литералы [] / {} / ().
+    # Это вопрос вкуса, а не корректности: вызов конструктора читается явнее.
+    # Правило и так не автофиксится — ruff считает такую замену unsafe fix,
+    # так что хук ничего не переписывал, только шумел.
+    "C408",
+]
+
 # РЕШЕНО: пока живём на дефолтном наборе ruff, extend-select не задаём.
 # Таблица ниже сохранена, чтобы вернуться к вопросу без повторных замеров.
 #

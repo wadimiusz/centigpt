@@ -1,0 +1,97 @@
+# Хуки pre-commit для nanogpt.
+#
+#   make hooks         установить хуки в .git/hooks
+#   make hooks-run     прогнать всё по всему репозиторию (ПЕРЕЗАПИСЫВАЕТ файлы)
+#   make hooks-update  обновить пины ревизий
+#
+# Главный принцип конфига: всё, что должно знать про типы проекта, запускается
+# в ПРОЕКТНОМ окружении через `uv run` (language: system), а не в изолированном
+# venv, который pre-commit создаёт для удалённых репозиториев.
+#
+# Почему это важно, замерено на этом проекте. Стандартное зеркало mirrors-mypy
+# ставит mypy в отдельное окружение, где torch не установлен. Тогда mypy либо
+# падает на import-not-found, либо — если это «починить» привычным
+# ignore_missing_imports — начинает считать весь torch за Any. На файле с тремя
+# настоящими ошибками (опечатка в kwarg nn.Linear, опечатка в имени метода
+# Tensor, присваивание Tensor в int) изолированный mypy печатает
+# "Success: no issues found", а mypy в проектном окружении находит все три.
+#
+# Побочная выгода: версии ruff и mypy здесь ровно те же, что в uv.lock, поэтому
+# хуки и `make check` не могут разойтись во мнениях.
+
+default_install_hook_types: [pre-commit, pre-push]
+
+# Прогонять все хуки, а не останавливаться на первом упавшем — та же логика,
+# что у цели `make check`: чинить всё замечания за один заход, а не за пять.
+fail_fast: false
+
+repos:
+  # -------------------------------------------------------------------------
+  # Общая гигиена. Этим хукам проектные зависимости не нужны, так что
+  # изолированное окружение им не вредит.
+  # -------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: debug-statements        # забытые breakpoint() и import pdb
+      - id: check-added-large-files
+        # Проект про обучение моделей: чекпоинт, случайно попавший в коммит,
+        # раздувает историю навсегда. Порог нарочно низкий.
+        args: [--maxkb=1024]
+
+  # -------------------------------------------------------------------------
+  # Инструменты проекта — только local + system, см. комментарий вверху.
+  # -------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check --fix
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: uv-lock-check
+        name: uv.lock соответствует pyproject.toml
+        entry: uv lock --check
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      # --- Ниже: только pre-push. На pre-commit остаётся то, что чинит себя
+      # --- само (ruff) или стоит копейки (гигиена файлов). Всё, что лишь
+      # --- выносит вердикт и требует ручной правки, коммит не блокирует.
+
+      # pass_filenames: false — mypy получает весь проект, а не только
+      # изменённые файлы. Это не педантизм: рефакторинг model.py на Config
+      # сломал типы в tests/, и при пофайловой проверке коммита с одним лишь
+      # model.py этого не было бы видно.
+      - id: mypy
+        name: mypy (весь проект)
+        entry: uv run mypy .
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        require_serial: true
+        stages: [pre-push]
+
+      - id: pytest
+        name: pytest (весь набор)
+        entry: uv run pytest -q
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        stages: [pre-push]

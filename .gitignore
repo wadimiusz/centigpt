@@ -13,3 +13,6 @@ wheels/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+
+# data cache
+tokenized_data/

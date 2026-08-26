@@ -33,7 +33,7 @@ help: ## Показать этот список
 	@echo "nanogpt — доступные цели:"
 	@echo
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 	@echo
 
 # ---------------------------------------------------------------------------
@@ -95,8 +95,25 @@ clean: ## Удалить кэши инструментов и __pycache__
 	find . -path ./.venv -prune -o -name '__pycache__' -type d -print0 \
 		| xargs -0 rm -rf
 
+# ---------------------------------------------------------------------------
+# Git-хуки
+# ---------------------------------------------------------------------------
+
+hooks: ## Установить git-хуки (pre-commit и pre-push)
+	$(RUN) pre-commit install
+
+hooks-run: ## Прогнать pre-commit по всему репозиторию (ПЕРЕЗАПИСЫВАЕТ файлы)
+	$(RUN) pre-commit run --all-files
+
+hooks-update: ## Обновить пины ревизий в .pre-commit-config.yaml
+	$(RUN) pre-commit autoupdate
+
+hooks-uninstall: ## Снять git-хуки
+	$(RUN) pre-commit uninstall --hook-type pre-commit --hook-type pre-push
+
 # .PHONY говорит make, что это не имена файлов. Без него цель `test` сломалась
 # бы в тот день, когда в репозитории появится каталог с таким именем: make
 # увидит «файл test уже есть, он новее зависимостей» и ничего не запустит.
 .PHONY: help lint format-check typecheck test lock-check check \
-        lint-fix format fix install clean
+        lint-fix format fix install clean \
+        hooks hooks-run hooks-update hooks-uninstall

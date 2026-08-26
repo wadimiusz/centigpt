@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Literal
+
 
 @dataclass(frozen=True)
 class Config:
@@ -10,7 +12,10 @@ class Config:
     max_seq_len: int = 512
     rope_base: float = 10000.0
     seed: int = 0
+    data_fraction: float = 1.0
+    packing: Literal["stream", "padded", "block_diagonal"] = "stream"
+    batch_size: int = 32
 
     @property
-    def d_hidden(self):          # наше правило ⌈8d/3⌉→кратно 128
+    def d_hidden(self):  # наше правило ⌈8d/3⌉→кратно 128
         return ((8 * self.d_model // 3) + 127) // 128 * 128
