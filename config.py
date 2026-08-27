@@ -17,8 +17,20 @@ class Config:
     batch_size: int = 32
 
     @property
-    def d_hidden(self):  # наше правило ⌈8d/3⌉→кратно 128
+    def d_hidden(self):  # round to nearest multiple of 128
         return ((8 * self.d_model // 3) + 127) // 128 * 128
+
+    @property
+    def batch_tokens(self):
+        return self.batch_size * self.max_seq_len  # 64·512 = 32768
+
+    @property
+    def total_steps(self):
+        return self.train_tokens_budget // self.batch_tokens
+
+    @property
+    def warmup_steps(self):
+        return int(0.02 * self.total_steps)
 
     def __post_init__(self):
         assert 0 < self.data_fraction <= 1.0, (
