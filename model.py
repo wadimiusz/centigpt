@@ -1,3 +1,6 @@
+from collections.abc import Generator
+from contextlib import contextmanager
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -141,3 +144,39 @@ class GPT(nn.Module):
             x = block(x)
         x = self.norm_f(x)
         return self.lm_head(x)  # (B, T, vocab_size) — логиты
+
+    @contextmanager
+    def eval_mode(self) -> Generator[None]:
+        module_to_training_mode = {module: module.training for module in self.modules()}
+        self.eval()
+
+        try:
+            yield
+        finally:
+            for module, training_mode in module_to_training_mode.items():
+                module.training = training_mode
+
+    def generate(
+        self,
+        prompt_ids: list[int],
+        max_new_tokens: int,
+        temperature: float,
+        eos_id: int,
+    ) -> list[int]:
+        assert temperature > 0
+        # TODO: zero should be allowed but requires separate handling, which is not yet implemented
+        device = next(self.parameters()).device
+        with torch.no_grad(), self.eval_mode():
+            for _ in range(max_new_tokens):
+                output = self(torch.LongTensor([prompt_ids]).to(device))
+                assert output.size() == (1, len(prompt_ids), self.cfg.vocab_size)
+                # this works despite the different types
+                logits = output[0, -1]
+                probs = torch.softmax(logits / temperature, dim=-1)
+                next_token_id = torch.multinomial(probs, num_samples=1).item()
+                assert isinstance(next_token_id, int)  # making the typechecker happy
+                prompt_ids.append(next_token_id)
+                if next_token_id == eos_id:
+                    break
+
+        return prompt_ids

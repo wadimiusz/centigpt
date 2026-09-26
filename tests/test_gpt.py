@@ -223,3 +223,104 @@ def test_module_wide_dtype_cast_is_rejected(gpt):
     gpt = gpt.to(torch.bfloat16)
     with pytest.raises(AssertionError, match="freqs_cis"):
         gpt(tokens(1, 8))
+
+
+# --------------------------------------------------------------------------
+# eval_mode
+# --------------------------------------------------------------------------
+
+
+def test_eval_mode_switches_the_whole_tree(gpt):
+    gpt.train()
+    with gpt.eval_mode():
+        assert not any(module.training for module in gpt.modules())
+
+
+def test_eval_mode_restores_training_on_exit(gpt):
+    gpt.train()
+    with gpt.eval_mode():
+        pass
+    assert all(module.training for module in gpt.modules())
+
+
+def test_eval_mode_entered_from_eval_stays_in_eval(gpt):
+    """The snapshot has to be taken before the switch to eval, otherwise a
+    model that was already in eval comes out of the block in train mode."""
+    gpt.eval()
+    with gpt.eval_mode():
+        pass
+    assert not gpt.training
+
+
+def test_eval_mode_yields_nothing(gpt):
+    """The manager mutates the model in place rather than producing a new
+    object, so `as` would only alias something already in scope."""
+    with gpt.eval_mode() as value:
+        assert value is None
+
+
+def test_eval_mode_preserves_a_submodule_left_in_eval(gpt):
+    """The reason the manager snapshots every module instead of one flag:
+    nn.Module.train() is recursive, so restoring only the root would drag a
+    deliberately frozen submodule back into train mode."""
+    gpt.train()
+    gpt.blocks[0].eval()
+    with gpt.eval_mode():
+        pass
+    assert gpt.training
+    assert not gpt.blocks[0].training
+    assert not gpt.blocks[0].attn.W_Q.training
+    assert gpt.blocks[1].training
+
+
+def test_eval_mode_preserves_a_single_leaf_left_in_eval(gpt):
+    """Same guarantee one level deeper: a lone Linear in eval must survive a
+    round trip without dragging its parent down with it."""
+    gpt.train()
+    gpt.blocks[1].attn.W_Q.eval()
+    with gpt.eval_mode():
+        pass
+    assert not gpt.blocks[1].attn.W_Q.training
+    assert gpt.blocks[1].attn.training
+
+
+def test_eval_mode_restores_after_an_exception(gpt):
+    """The restore lives in a finally block; a forward that raises mid-block
+    must not leave the model stuck in eval for the rest of training."""
+    gpt.train()
+    gpt.blocks[0].eval()
+    with pytest.raises(ValueError), gpt.eval_mode():
+        raise ValueError("boom")
+    assert gpt.training
+    assert not gpt.blocks[0].training
+
+
+def test_eval_mode_nests(gpt):
+    """Each entry captures the state it actually found, so the inner block
+    restores to eval and only the outer one gets back to train."""
+    gpt.train()
+    gpt.blocks[0].eval()
+    with gpt.eval_mode():
+        with gpt.eval_mode():
+            assert not gpt.training
+        assert not gpt.training
+    assert gpt.training
+    assert not gpt.blocks[0].training
+
+
+def test_eval_mode_restores_a_shared_submodule(gpt):
+    """A module hung in two places appears once in .modules(), so restoring
+    with the recursive train() lets its second parent overwrite it after it
+    has already been put back. Assigning .training per module is
+    order-independent and survives this."""
+    gpt.blocks[1].norm1 = gpt.blocks[0].norm1
+    gpt.train()
+    gpt.blocks[0].norm1.eval()
+    with gpt.eval_mode():
+        pass
+    assert not gpt.blocks[0].norm1.training
+
+
+def test_eval_mode_leaves_the_model_usable(gpt):
+    with gpt.eval_mode(), torch.no_grad():
+        assert gpt(tokens(2, 8)).shape == (2, 8, CFG.vocab_size)

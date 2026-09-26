@@ -3,6 +3,7 @@ import math
 import lightning as L
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from torch.optim import Optimizer
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
@@ -17,6 +18,8 @@ class LightningModule(L.LightningModule):
         self.config = config
         self.model = GPT(config)
         self.config = config
+        if self.config.packing != "stream":
+            raise ValueError(f"Packing {self.config.packing} is not supported")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
@@ -30,8 +33,14 @@ class LightningModule(L.LightningModule):
         loss = F.cross_entropy(
             logits.flatten(0, 1), target_ids.flatten(), ignore_index=-100
         )
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_step=True)
         self.log("lr", self.lr_schedulers().get_last_lr()[0], on_step=True)
+
+        if batch_idx == 0:
+            logger.info(
+                f"Batch_idx: {batch_idx}, loss: {loss.item()}, lr: {self.lr_schedulers().get_last_lr()[0]}"
+            )
+
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
@@ -39,7 +48,10 @@ class LightningModule(L.LightningModule):
         target_ids = batch["target_ids"]
         logits = self(input_ids)
         loss_sum = F.cross_entropy(
-            logits.flatten(0, 1), target_ids, ignore_index=-100, reduction="sum"
+            logits.flatten(0, 1),
+            target_ids.flatten(),
+            ignore_index=-100,
+            reduction="sum",
         )
         n_alive = (target_ids != -100).sum()
         self.log(
@@ -62,7 +74,12 @@ class LightningModule(L.LightningModule):
 
     def configure_optimizers(self) -> dict[str, Optimizer | LRScheduler]:
         # cosine с warmup, interval="step"
-        optimizer = AdamW(lr=self.config.lr, betas=(0.9, 0.95), weight_decay=0.1)
+        optimizer = AdamW(
+            params=self.model.parameters(),
+            lr=self.config.lr,
+            betas=(0.9, 0.95),
+            weight_decay=0.1,
+        )
         scheduler = LambdaLR(optimizer=optimizer, lr_lambda=self.lr_lambda)
         return {
             "optimizer": optimizer,

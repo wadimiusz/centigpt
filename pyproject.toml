@@ -12,6 +12,7 @@ dependencies = [
     "tokenizers>=0.22.2",
     "torch>=2.13.0",
     "transformers>=5.15.1",
+    "tyro>=1.0.16",
 ]
 
 [dependency-groups]
