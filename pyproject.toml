@@ -106,5 +106,10 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_unused_configs = true
 
+# Нет ни py.typed, ни заглушек типов: не требуем их.
+[[tool.mypy.overrides]]
+module = ["datasets", "tqdm", "tqdm.*"]
+ignore_missing_imports = true
+
 # Строгость намеренно не выкручена: strict = true потребовал бы аннотировать
 # все ~30 тестовых функций и утопил бы реальные находки в шуме.

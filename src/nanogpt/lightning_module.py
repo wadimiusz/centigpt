@@ -3,8 +3,8 @@ import math
 import lightning as L
 import torch
 import torch.nn.functional as F
+from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from loguru import logger
-from torch.optim import Optimizer
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
@@ -34,11 +34,11 @@ class LightningModule(L.LightningModule):
             logits.flatten(0, 1), target_ids.flatten(), ignore_index=-100
         )
         self.log("train_loss", loss, on_step=True)
-        self.log("lr", self.lr_schedulers().get_last_lr()[0], on_step=True)
+        self.log("lr", self._current_lr(), on_step=True)
 
         if batch_idx == 0:
             logger.info(
-                f"Batch_idx: {batch_idx}, loss: {loss.item()}, lr: {self.lr_schedulers().get_last_lr()[0]}"
+                f"Batch_idx: {batch_idx}, loss: {loss.item()}, lr: {self._current_lr()}"
             )
 
         return loss
@@ -58,7 +58,7 @@ class LightningModule(L.LightningModule):
             "val_loss",
             loss_sum / n_alive,
             on_epoch=True,
-            batch_size=n_alive,
+            batch_size=int(n_alive.item()),
             sync_dist=False,
         )
 
@@ -72,7 +72,12 @@ class LightningModule(L.LightningModule):
             1 + math.cos(math.pi * t)
         )
 
-    def configure_optimizers(self) -> dict[str, Optimizer | LRScheduler]:
+    def _current_lr(self) -> float:
+        scheduler = self.lr_schedulers()
+        assert isinstance(scheduler, LRScheduler)
+        return float(scheduler.get_last_lr()[0])
+
+    def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         # cosine с warmup, interval="step"
         optimizer = AdamW(
             params=self.model.parameters(),
