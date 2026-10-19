@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 import torch
 
-from config import Config
-from model import GPT
-from probe import (
+from nanogpt.config import Config
+from nanogpt.model import GPT
+from nanogpt.probe import (
     attention_patterns,
     capture_attention,
     head_rows,

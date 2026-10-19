@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 
@@ -18,6 +18,10 @@ class Config:
     train_tokens_budget: int = 50_000_000
     lr: float = 3e-4
     min_lr_ratio: float = 0.1
+    dataset_id: str = "roneneldan/TinyStories"
+    tokenized_data_path: str = "tokenized_data/"
+    dataset_field_names: list[str] = field(default_factory=lambda: ["text"])
+    tokenizer_path: str = "tokenizer.json"
 
     @property
     def d_hidden(self):  # round to nearest multiple of 128

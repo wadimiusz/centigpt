@@ -1,11 +1,12 @@
 import math
+import pathlib
 
 import lightning as L
 from torch.utils.data import DataLoader, Dataset
 
-from config import Config
-from data.datasets import WindowDataset
-from data.memmap import get_tokenized_data
+from nanogpt.config import Config
+from nanogpt.data.memmap import Memmap
+from nanogpt.data.window_dataset import WindowDataset
 
 
 class DataModule(L.LightningDataModule):
@@ -20,16 +21,19 @@ class DataModule(L.LightningDataModule):
             )
 
         self.stage_to_dataset: dict[str, Dataset] = dict()
+        self.memmap = Memmap(config=config)
 
     def setup(self, stage: str):
         """`stage` is ignored; setup prepares all datasets."""
         del stage
+        tokenized_data_path = pathlib.Path(self.config.tokenized_data_path)
+        tokenized_data_path.mkdir(parents=True, exist_ok=True)
         for split in self.all_splits:
             if split not in self.stage_to_dataset:
-                tokens, offsets = get_tokenized_data(
+                tokens, offsets = self.memmap.get_tokenized_data(
                     split=split,
-                    tokens_path=f"tokenized_data/tokens_{split}.npy",
-                    offsets_path=f"tokenized_data/offsets_{split}.npy",
+                    tokens_path=str(tokenized_data_path / f"tokens_{split}.npy"),
+                    offsets_path=str(tokenized_data_path / f"offsets_{split}.npy"),
                 )
                 data_fraction = self.config.data_fraction if split == "train" else 1.0
                 num_stories = len(offsets) - 1

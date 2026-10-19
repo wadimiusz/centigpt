@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-import data.datamodule as dm
-from config import Config
-from data.datamodule import DataModule
-from data.datasets import WindowDataset
+import nanogpt.data.datamodule as dm
+from nanogpt.config import Config
+from nanogpt.data.datamodule import DataModule
+from nanogpt.data.window_dataset import WindowDataset
 
 STORY_LEN = 20
 N_STORIES = 40
@@ -17,7 +17,9 @@ def fake_corpus(monkeypatch):
     """Stand in for the on-disk memmap pair: 40 stories of 20 tokens each."""
     tokens = np.arange(N_STORIES * STORY_LEN, dtype=np.uint16)
     offsets = np.arange(N_STORIES + 1, dtype=np.int64) * STORY_LEN
-    monkeypatch.setattr(dm, "get_tokenized_data", lambda **kwargs: (tokens, offsets))
+    monkeypatch.setattr(
+        dm.Memmap, "get_tokenized_data", lambda self, **kwargs: (tokens, offsets)
+    )
     return tokens, offsets
 
 

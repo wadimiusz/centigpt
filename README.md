@@ -1,89 +1,115 @@
 # nanogpt
 
-Учебная реализация GPT-подобного трансформера с нуля: causal multi-head attention
-с RoPE, SwiGLU-MLP, pre-norm блоки на RMSNorm, связанные веса эмбеддинга и головы.
+A GPT-style transformer written from scratch for learning and small experiments:
+causal multi-head attention with RoPE, a SwiGLU MLP, pre-norm blocks with RMSNorm,
+and tied input/output embeddings. Training runs on PyTorch Lightning; data is
+tokenised once with a byte-level BPE tokenizer and read from disk as a memmap.
 
-## Требования
-
-- Python 3.14 (зафиксирован в `.python-version`)
-- [uv](https://docs.astral.sh/uv/) — менеджер зависимостей и окружений
-
-## Быстрый старт
+## Use it as a package
 
 ```bash
-make install     # создать .venv и поставить зависимости, включая dev-группу
-make check       # прогнать все проверки
+uv add git+https://github.com/wadimiusz/nanogpt
 ```
 
-Активировать окружение вручную не нужно: все цели ходят через `uv run`.
+```python
+import torch
+from nanogpt.config import Config
+from nanogpt.model import GPT
 
-## Команды
+cfg = Config(d_model=64, n_layers=2, n_heads=2, vocab_size=128, max_seq_len=64)
+model = GPT(cfg)
+logits = model(torch.randint(0, 128, (8, 32)))  # (batch, seq, vocab)
+```
 
-`make` без аргументов печатает актуальный список целей. Кратко:
+While developing against a local checkout, install it in editable mode so that
+changes show up immediately:
 
-| Цель | Что делает |
+```bash
+uv add --editable ../nanogpt
+```
+
+## Train
+
+Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
+
+```bash
+make install          # create .venv and install dependencies, including dev
+uv run nanogpt-train  # train with the defaults from Config (TinyStories)
+```
+
+Every field of `Config` is a command-line flag, for example
+`uv run nanogpt-train --d-model 128 --n-layers 4 --train-tokens-budget 10000000`.
+To train on another Hugging Face dataset, set `--dataset-id`,
+`--dataset-field-names` (several fields are joined with a `[SEP]` token),
+`--tokenizer-path` and `--tokenized-data-path`. The tokenizer is trained and the
+data tokenised on first use, then cached on disk.
+
+## Layout
+
+| Path | Contents |
 | --- | --- |
-| `make check` | **Всё сразу:** линтер, форматтер, тайп-чекер, тесты. Файлы не меняет, не останавливается на первой ошибке |
-| `make lint` | `ruff check` с подробным выводом |
-| `make format-check` | Показать дифф, который наложил бы форматтер |
+| `src/nanogpt/config.py` | `Config`, a frozen dataclass with all hyperparameters |
+| `src/nanogpt/model.py` | `CausalMultiheadAttention`, `SwiGLUMLP`, `Block`, `GPT` |
+| `src/nanogpt/tokenizer.py` | `TokenizerWrapper`: load a cached BPE tokenizer or train one |
+| `src/nanogpt/data/` | Memmap tokenisation, window dataset, Lightning datamodule |
+| `src/nanogpt/lightning_module.py` | Training and validation steps, AdamW with warmup and cosine decay |
+| `src/nanogpt/probe.py` | Tools for measuring what trained attention heads do with positions |
+| `src/nanogpt/train.py` | Training entry point (`nanogpt-train`) |
+| `experiments/` | Research experiments built on the model |
+| `tests/` | Tests, one file per module |
+
+## Experiments
+
+`experiments/nerode_geometry.py` trains the model on samples from random
+probabilistic automata and asks whether prefixes in the same Myhill–Nerode
+class (prefixes with the same distribution over all continuations) end up
+close together in the residual stream. `experiments/where_errors.py` measures
+where the trained model's predictions diverge from the automaton.
+
+## Checks
+
+`make` with no arguments lists all targets. The main ones:
+
+| Target | What it does |
+| --- | --- |
+| `make check` | **Everything:** linter, formatter check, type checker, tests. Does not modify files and does not stop at the first failure |
+| `make lint` | `ruff check` |
+| `make format-check` | Show the diff the formatter would apply |
 | `make typecheck` | `mypy` |
 | `make test` | `pytest` |
-| `make lock-check` | Сверить `uv.lock` с `pyproject.toml` |
-| `make fix` | **Перезаписывает файлы:** автофиксы ruff + форматирование |
-| `make lint-fix` | Только автофиксы ruff |
-| `make format` | Только форматирование |
-| `make clean` | Удалить кэши инструментов и `__pycache__` |
-| `make hooks` | Установить git-хуки pre-commit и pre-push |
-| `make hooks-run` | **Перезаписывает файлы:** прогнать хуки по всему репозиторию |
-| `make hooks-update` | Обновить пины ревизий в `.pre-commit-config.yaml` |
-| `make hooks-uninstall` | Снять git-хуки |
+| `make fix` | **Rewrites files:** ruff autofixes and formatting |
+| `make hooks` | Install the pre-commit and pre-push git hooks |
 
-## Структура
+All tool configuration lives in `pyproject.toml`.
 
-| Путь | Содержимое |
-| --- | --- |
-| `config.py` | `Config` — замороженный dataclass с гиперпараметрами |
-| `constants.py` | Константы, общие для модулей |
-| `model.py` | `CausalMultiheadAttention`, `SwiGLUMLP`, `Block`, `GPT` |
-| `tokenizer.py` | Токенизатор; словарь — в `tokenizer.json` |
-| `data/` | Датасеты, memmap-хранилище, datamodule |
-| `tests/` | Тесты по модулям |
-| `main.py` | Точка входа |
+**ruff** runs on its default rule set (in 0.16 that is a curated set of 413
+rules from 38 families, not just "E,F"), with line length 88. To add rules use
+`extend-select`, not `select`: the latter replaces the default set entirely.
+One rule is disabled, `C408` (rewrite `list()`/`dict()` calls as literals),
+since that is a matter of taste rather than correctness.
 
-## Как настроены проверки
+**mypy** is deliberately not `strict`. The key setting is
+`check_untyped_defs = true`: without it mypy does not look inside functions
+without annotations, and so does not check the calls they make.
 
-Всё живёт в `pyproject.toml`, отдельных конфигов нет.
+## Git hooks
 
-**ruff** — на дефолтном наборе правил (в 0.16 это кураторские 413 правил из 38
-семейств, а не «E,F»). Длина строк выставлена в 88. Если будешь расширять набор,
-используй `extend-select`, а не `select`: второй затирает дефолт целиком.
+`make hooks` installs two hooks:
 
-Из дефолта выключено одно правило — `C408` (требует переписывать `list()` и
-`dict()` в литералы). Это вопрос вкуса, а не корректности.
+- **pre-commit**: ruff (`check --fix` and `format`), file hygiene, `uv.lock`
+  consistency. Only things that fix themselves or cost almost nothing.
+- **pre-push**: mypy and pytest. They give a verdict that has to be fixed by
+  hand, which should not block a commit.
 
-**mypy** — намеренно не `strict`. Ключевая настройка — `check_untyped_defs = true`:
-без неё mypy не заглядывает внутрь функций без аннотаций, а значит не проверяет
-и вызовы в них. Именно она делает проверку осмысленной на коде, где аннотации
-расставлены не везде.
+The ruff and mypy hooks are `repo: local` with `language: system` and run
+through `uv run`, i.e. in the **project** environment. In the isolated venv
+that pre-commit creates for remote hook repositories (`mirrors-mypy`) torch is
+not installed, so mypy would either fail on `import-not-found` or, with
+`ignore_missing_imports`, treat all of torch as `Any`. As a side effect, the
+hook tools have exactly the versions pinned in `uv.lock`. The mypy hook runs
+with `pass_filenames: false` and checks the whole project: a change in
+`model.py` can break types in `tests/`, which a per-file check would miss.
 
-## Git-хуки
+## License
 
-`make hooks` ставит два хука:
-
-- **`pre-commit`** — ruff (`check --fix` и `format`), гигиена файлов, сверка `uv.lock`.
-  Здесь только то, что чинит себя само или стоит копейки.
-- **`pre-push`** — mypy и pytest. Оба выносят вердикт, но чинить приходится руками,
-  а такое не должно блокировать коммит.
-
-Хуки ruff и mypy объявлены как `repo: local` с `language: system` и ходят через
-`uv run`, то есть работают в **проектном** окружении. Это не стилистика: если
-запускать mypy в изолированном venv, который pre-commit создаёт для удалённых
-репозиториев (`mirrors-mypy`), torch там не установлен — mypy либо падает на
-`import-not-found`, либо, с привычным `ignore_missing_imports`, считает весь
-torch за `Any` и перестаёт что-либо находить внутри него. Побочная выгода: версии
-инструментов в хуках ровно те же, что в `uv.lock`, поэтому хуки и `make check`
-не могут разойтись во мнениях.
-
-Хук mypy запускается с `pass_filenames: false`, то есть проверяет весь проект,
-а не только изменённые файлы: правка в `model.py` способна сломать типы в
-`tests/`, и пофайловая проверка этого не увидит.
+MIT

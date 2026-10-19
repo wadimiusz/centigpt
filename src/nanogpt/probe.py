@@ -16,8 +16,8 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from config import Config
-from model import GPT, CausalMultiheadAttention
+from nanogpt.config import Config
+from nanogpt.model import GPT, CausalMultiheadAttention
 
 
 class EagerAttention(CausalMultiheadAttention):

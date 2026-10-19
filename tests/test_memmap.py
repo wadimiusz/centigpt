@@ -7,8 +7,9 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.trainers import BpeTrainer
 
-import data.memmap as mm
-from constants import PROJECT_SEED
+import nanogpt.data.memmap as mm
+from nanogpt.config import Config
+from nanogpt.constants import PROJECT_SEED
 
 N_STORIES = 60
 
@@ -44,9 +45,13 @@ def corpus(monkeypatch, stories, tiny_tokenizer):
         }
     )
     monkeypatch.setattr(mm, "load_dataset", lambda *a, **k: dataset)
-    monkeypatch.setattr(mm, "get_tokenizer", lambda *a, **k: tiny_tokenizer)
     monkeypatch.setattr(mm, "encoding_batch_size", 7)
     return dataset
+
+
+@pytest.fixture
+def memmap(tiny_tokenizer):
+    return mm.Memmap(Config(dataset_field_names=["text"]), tokenizer=tiny_tokenizer)
 
 
 @pytest.fixture
@@ -55,9 +60,9 @@ def paths(tmp_path):
 
 
 @pytest.fixture
-def written(corpus, paths):
+def written(corpus, paths, memmap):
     tokens_path, offsets_path = paths
-    tokens, offsets = mm.create_tokenized_memmap("train", tokens_path, offsets_path)
+    tokens, offsets = memmap.create_tokenized_memmap("train", tokens_path, offsets_path)
     return tokens_path, offsets_path, tokens, offsets
 
 
@@ -136,13 +141,13 @@ def test_stories_are_shuffled(written, tiny_tokenizer, stories):
     assert first != stories[0]
 
 
-def test_shuffle_is_reproducible_from_the_project_seed(corpus, tmp_path):
+def test_shuffle_is_reproducible_from_the_project_seed(corpus, tmp_path, memmap):
     """Two runs must lay the corpus out identically, otherwise a resumed run
     would see a different train/validation content than the one it started
     with."""
     out = []
     for run in ("a", "b"):
-        tokens, offsets = mm.create_tokenized_memmap(
+        tokens, offsets = memmap.create_tokenized_memmap(
             "train", str(tmp_path / f"t_{run}.npy"), str(tmp_path / f"o_{run}.npy")
         )
         out.append((np.asarray(tokens).copy(), np.asarray(offsets).copy()))
@@ -155,31 +160,33 @@ def test_shuffle_is_reproducible_from_the_project_seed(corpus, tmp_path):
 # --------------------------------------------------------------------------
 
 
-def test_reuses_existing_files_instead_of_retokenising(written, monkeypatch):
+def test_reuses_existing_files_instead_of_retokenising(written, monkeypatch, memmap):
     def explode(*args, **kwargs):
         raise AssertionError("should not re-tokenise when both files exist")
 
-    monkeypatch.setattr(mm, "create_tokenized_memmap", explode)
+    monkeypatch.setattr(memmap, "create_tokenized_memmap", explode)
     tokens_path, offsets_path, tokens, offsets = written
-    got_tokens, got_offsets = mm.get_tokenized_data("train", tokens_path, offsets_path)
+    got_tokens, got_offsets = memmap.get_tokenized_data(
+        "train", tokens_path, offsets_path
+    )
     assert np.array_equal(np.asarray(got_tokens), np.asarray(tokens))
     assert np.array_equal(np.asarray(got_offsets), np.asarray(offsets))
 
 
-def test_tokenises_when_a_file_is_missing(corpus, paths):
+def test_tokenises_when_a_file_is_missing(corpus, paths, memmap):
     tokens_path, offsets_path = paths
-    tokens, offsets = mm.get_tokenized_data("train", tokens_path, offsets_path)
+    tokens, offsets = memmap.get_tokenized_data("train", tokens_path, offsets_path)
     assert len(tokens) == offsets[-1]
 
 
-def test_a_half_written_pair_is_regenerated(written, corpus):
+def test_a_half_written_pair_is_regenerated(written, corpus, memmap):
     """Only the offsets survive a crash between the two writes. Finding one
     file must not be enough to skip tokenising."""
     tokens_path, offsets_path, _, _ = written
     import os
 
     os.remove(tokens_path)
-    tokens, offsets = mm.get_tokenized_data("train", tokens_path, offsets_path)
+    tokens, offsets = memmap.get_tokenized_data("train", tokens_path, offsets_path)
     assert len(tokens) == offsets[-1]
 
 
@@ -188,35 +195,35 @@ def test_a_half_written_pair_is_regenerated(written, corpus):
 # --------------------------------------------------------------------------
 
 
-def test_verify_accepts_a_good_pair(written, tiny_tokenizer, stories):
+def test_verify_accepts_a_good_pair(written, memmap, stories):
     tokens_path, offsets_path, _, _ = written
-    mm.verify(tokens_path, offsets_path, tiny_tokenizer, stories)
+    memmap.verify(tokens_path, offsets_path, stories)
 
 
-def test_verify_rejects_a_truncated_token_file(written, tiny_tokenizer, stories):
+def test_verify_rejects_a_truncated_token_file(written, memmap, stories):
     tokens_path, offsets_path, _, offsets = written
     broken = np.asarray(offsets).copy()
     broken[-1] += 1
     np.save(offsets_path, broken)
     with pytest.raises(AssertionError):
-        mm.verify(tokens_path, offsets_path, tiny_tokenizer, stories)
+        memmap.verify(tokens_path, offsets_path, stories)
 
 
-def test_verify_rejects_a_missing_eos(written, tiny_tokenizer, stories):
+def test_verify_rejects_a_missing_eos(written, memmap, stories):
     tokens_path, offsets_path, _, offsets = written
     tokens = np.load(tokens_path)
     tokens[offsets[1] - 1] = 1  # anything that is not [EOS]
     np.save(tokens_path, tokens)
     with pytest.raises(AssertionError):
-        mm.verify(tokens_path, offsets_path, tiny_tokenizer, stories)
+        memmap.verify(tokens_path, offsets_path, stories)
 
 
-def test_verify_rejects_text_that_does_not_round_trip(written, tiny_tokenizer, stories):
+def test_verify_rejects_text_that_does_not_round_trip(written, memmap, stories):
     tokens_path, offsets_path, _, _ = written
     tampered = list(stories)
     tampered[0] = "something else entirely"
     with pytest.raises(AssertionError):
-        mm.verify(tokens_path, offsets_path, tiny_tokenizer, tampered)
+        memmap.verify(tokens_path, offsets_path, tampered)
 
 
 # --------------------------------------------------------------------------
@@ -225,7 +232,7 @@ def test_verify_rejects_text_that_does_not_round_trip(written, tiny_tokenizer, s
 
 
 def test_handles_a_corpus_smaller_than_one_encoding_batch(
-    monkeypatch, corpus, paths, tiny_tokenizer
+    monkeypatch, corpus, paths, memmap
 ):
     """np.array_split(permutation, len(permutation) // encoding_batch_size)
     asks for zero sections whenever the corpus has fewer stories than one
@@ -233,6 +240,45 @@ def test_handles_a_corpus_smaller_than_one_encoding_batch(
     hits this."""
     monkeypatch.setattr(mm, "encoding_batch_size", N_STORIES * 2)
     tokens_path, offsets_path = paths
-    tokens, offsets = mm.create_tokenized_memmap("train", tokens_path, offsets_path)
+    tokens, offsets = memmap.create_tokenized_memmap("train", tokens_path, offsets_path)
     assert len(offsets) == N_STORIES + 1
     assert len(tokens) == offsets[-1]
+
+
+# --------------------------------------------------------------------------
+# multi-field entries
+# --------------------------------------------------------------------------
+
+
+def test_multi_field_entries_are_joined_with_sep(monkeypatch, tmp_path, stories):
+    """Each field is encoded on its own and the fields are separated by [SEP];
+    the entry still ends with exactly one [EOS]."""
+    tok = Tokenizer(BPE())
+    tok.pre_tokenizer = ByteLevel(add_prefix_space=False)
+    tok.decoder = ByteLevelDecoder()
+    tok.train_from_iterator(
+        stories, trainer=BpeTrainer(vocab_size=300, special_tokens=["[EOS]", "[SEP]"])
+    )
+    dataset = DatasetDict(
+        {"train": Dataset.from_dict({"title": ["t"] * N_STORIES, "text": stories})}
+    )
+    monkeypatch.setattr(mm, "load_dataset", lambda *a, **k: dataset)
+    memmap = mm.Memmap(Config(dataset_field_names=["title", "text"]), tokenizer=tok)
+    tokens, _offsets = memmap.create_tokenized_memmap(
+        "train", str(tmp_path / "t.npy"), str(tmp_path / "o.npy")
+    )
+    tokens = np.asarray(tokens)
+    sep, eos = tok.token_to_id("[SEP]"), tok.token_to_id("[EOS]")
+    assert (tokens == sep).sum() == N_STORIES
+    assert (tokens == eos).sum() == N_STORIES
+
+
+def test_single_field_needs_no_sep_token(memmap, corpus, paths, tiny_tokenizer):
+    """The TinyStories tokenizer has only [EOS]; a one-field corpus must not
+    require [SEP]."""
+    assert tiny_tokenizer.token_to_id("[SEP]") is None
+    tokens_path, offsets_path = paths
+    _tokens, offsets = memmap.create_tokenized_memmap(
+        "train", tokens_path, offsets_path
+    )
+    assert len(offsets) == N_STORIES + 1

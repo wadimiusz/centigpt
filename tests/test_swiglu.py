@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from config import Config
-from model import SwiGLUMLP
+from nanogpt.config import Config
+from nanogpt.model import SwiGLUMLP
 
 CFG = Config(d_model=32, n_heads=4, max_seq_len=64)
 

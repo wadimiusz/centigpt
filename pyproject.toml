@@ -1,9 +1,12 @@
 [project]
 name = "nanogpt"
 version = "0.1.0"
-description = "Add your description here"
+description = "A small GPT-style transformer written from scratch: RoPE, SwiGLU, RMSNorm, tied embeddings, Lightning training loop"
 readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Vadim Fomin", email = "wadimiusz@gmail.com" }]
 dependencies = [
     "datasets>=5.0.1",
     "lightning>=2.6.5",
@@ -14,6 +17,17 @@ dependencies = [
     "transformers>=5.15.1",
     "tyro>=1.0.16",
 ]
+
+[project.scripts]
+nanogpt-train = "nanogpt.train:main"
+nanogpt-tokenize = "nanogpt.data.memmap:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nanogpt"]
 
 [dependency-groups]
 dev = [
@@ -80,6 +94,7 @@ ignore = [
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.14"
+mypy_path = "src"
 exclude = '^\.venv/'
 
 # Ключевая настройка. По умолчанию mypy НЕ заглядывает внутрь функций без

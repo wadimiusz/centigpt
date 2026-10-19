@@ -4,8 +4,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from config import Config
-from model import GPT
+from nanogpt.config import Config
+from nanogpt.model import GPT
 
 CFG = Config(d_model=64, n_layers=3, n_heads=4, vocab_size=512, max_seq_len=32)
 

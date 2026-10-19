@@ -8,8 +8,8 @@ from torch.optim import Optimizer
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
-from config import Config
-from model import GPT
+from nanogpt.config import Config
+from nanogpt.model import GPT
 
 
 class LightningModule(L.LightningModule):
