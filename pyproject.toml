@@ -108,7 +108,15 @@ warn_unused_configs = true
 
 # Нет ни py.typed, ни заглушек типов: не требуем их.
 [[tool.mypy.overrides]]
-module = ["datasets", "tqdm", "tqdm.*"]
+module = [
+    "datasets",
+    "matplotlib",
+    "matplotlib.*",
+    "tokenizers",
+    "tokenizers.*",
+    "tqdm",
+    "tqdm.*",
+]
 ignore_missing_imports = true
 
 # Строгость намеренно не выкручена: strict = true потребовал бы аннотировать
