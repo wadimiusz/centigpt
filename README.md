@@ -5,6 +5,13 @@ causal multi-head attention with RoPE, a SwiGLU MLP, pre-norm blocks with RMSNor
 and tied input/output embeddings. Training runs on PyTorch Lightning; data is
 tokenised once with a byte-level BPE tokenizer and read from disk as a memmap.
 
+**Why this exists.** I wrote this model, its data pipeline and training loop
+from scratch to build intuition for how small language models train
+(learning-rate sweeps, data packing, scaling) and to have a model I understand
+line by line for interpretability experiments. It is meant to be small and
+readable, not to compete with nanoGPT or other libraries. Tests and packaging
+were done with help from Claude.
+
 ## Use it as a package
 
 ```bash
@@ -59,6 +66,9 @@ data tokenised on first use, then cached on disk.
 | `tests/` | Tests, one file per module |
 
 ## Experiments
+
+See [`experiments/README.md`](experiments/README.md) for the question, the
+setup and how to run each script.
 
 `experiments/nerode_geometry.py` trains the model on samples from random
 probabilistic automata and asks whether prefixes in the same Myhill–Nerode
