@@ -63,8 +63,12 @@ data tokenised on first use, then cached on disk.
 `experiments/nerode_geometry.py` trains the model on samples from random
 probabilistic automata and asks whether prefixes in the same Myhill–Nerode
 class (prefixes with the same distribution over all continuations) end up
-close together in the residual stream. `experiments/where_errors.py` measures
-where the trained model's predictions diverge from the automaton.
+close together in the residual stream. `experiments/nerode_continuations.py`
+compares prefixes through their common continuations, and
+`experiments/where_errors.py` measures where the trained model's predictions
+diverge from the automaton. `experiments/demo_data.py` exports the data for an
+interactive write-up of these results:
+[Where does a transformer keep its state?](https://wadimiusz.me/nerode/)
 
 ## Checks
 
