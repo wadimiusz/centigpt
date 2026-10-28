@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from nanogpt.config import Config
+from centigpt.config import Config
 
 
 def test_default_config_is_self_consistent():

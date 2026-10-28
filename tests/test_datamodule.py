@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-import nanogpt.data.datamodule as dm
-from nanogpt.config import Config
-from nanogpt.data.datamodule import DataModule
-from nanogpt.data.window_dataset import WindowDataset
+import centigpt.data.datamodule as dm
+from centigpt.config import Config
+from centigpt.data.datamodule import DataModule
+from centigpt.data.window_dataset import WindowDataset
 
 STORY_LEN = 20
 N_STORIES = 40

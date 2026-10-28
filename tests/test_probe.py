@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 import torch
 
-from nanogpt.config import Config
-from nanogpt.model import GPT
-from nanogpt.probe import (
+from centigpt.config import Config
+from centigpt.model import GPT
+from centigpt.probe import (
     attention_patterns,
     capture_attention,
     head_rows,

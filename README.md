@@ -1,9 +1,12 @@
-# nanogpt
+# centigpt
 
 A GPT-style transformer written from scratch for learning and small experiments:
 causal multi-head attention with RoPE, a SwiGLU MLP, pre-norm blocks with RMSNorm,
 and tied input/output embeddings. Training runs on PyTorch Lightning; data is
 tokenised once with a byte-level BPE tokenizer and read from disk as a memmap.
+An independent from-scratch implementation (RoPE, SwiGLU, RMSNorm, tied
+embeddings, Lightning training loop), not a fork of Karpathy's
+[nanoGPT](https://github.com/karpathy/nanoGPT).
 
 **Why this exists.** I wrote this model, its data pipeline and training loop
 from scratch to build intuition for how small language models train
@@ -15,13 +18,13 @@ were done with help from Claude.
 ## Use it as a package
 
 ```bash
-uv add git+https://github.com/wadimiusz/nanogpt
+uv add git+https://github.com/wadimiusz/centigpt
 ```
 
 ```python
 import torch
-from nanogpt.config import Config
-from nanogpt.model import GPT
+from centigpt.config import Config
+from centigpt.model import GPT
 
 cfg = Config(d_model=64, n_layers=2, n_heads=2, vocab_size=128, max_seq_len=64)
 model = GPT(cfg)
@@ -32,7 +35,7 @@ While developing against a local checkout, install it in editable mode so that
 changes show up immediately:
 
 ```bash
-uv add --editable ../nanogpt
+uv add --editable ../centigpt
 ```
 
 ## Train
@@ -41,11 +44,11 @@ Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 make install          # create .venv and install dependencies, including dev
-uv run nanogpt-train  # train with the defaults from Config (TinyStories)
+uv run centigpt-train  # train with the defaults from Config (TinyStories)
 ```
 
 Every field of `Config` is a command-line flag, for example
-`uv run nanogpt-train --d-model 128 --n-layers 4 --train-tokens-budget 10000000`.
+`uv run centigpt-train --d-model 128 --n-layers 4 --train-tokens-budget 10000000`.
 To train on another Hugging Face dataset, set `--dataset-id`,
 `--dataset-field-names` (several fields are joined with a `[SEP]` token),
 `--tokenizer-path` and `--tokenized-data-path`. The tokenizer is trained and the
@@ -55,13 +58,13 @@ data tokenised on first use, then cached on disk.
 
 | Path | Contents |
 | --- | --- |
-| `src/nanogpt/config.py` | `Config`, a frozen dataclass with all hyperparameters |
-| `src/nanogpt/model.py` | `CausalMultiheadAttention`, `SwiGLUMLP`, `Block`, `GPT` |
-| `src/nanogpt/tokenizer.py` | `TokenizerWrapper`: load a cached BPE tokenizer or train one |
-| `src/nanogpt/data/` | Memmap tokenisation, window dataset, Lightning datamodule |
-| `src/nanogpt/lightning_module.py` | Training and validation steps, AdamW with warmup and cosine decay |
-| `src/nanogpt/probe.py` | Tools for measuring what trained attention heads do with positions |
-| `src/nanogpt/train.py` | Training entry point (`nanogpt-train`) |
+| `src/centigpt/config.py` | `Config`, a frozen dataclass with all hyperparameters |
+| `src/centigpt/model.py` | `CausalMultiheadAttention`, `SwiGLUMLP`, `Block`, `GPT` |
+| `src/centigpt/tokenizer.py` | `TokenizerWrapper`: load a cached BPE tokenizer or train one |
+| `src/centigpt/data/` | Memmap tokenisation, window dataset, Lightning datamodule |
+| `src/centigpt/lightning_module.py` | Training and validation steps, AdamW with warmup and cosine decay |
+| `src/centigpt/probe.py` | Tools for measuring what trained attention heads do with positions |
+| `src/centigpt/train.py` | Training entry point (`centigpt-train`) |
 | `tests/` | Tests, one file per module |
 
 ## Experiments

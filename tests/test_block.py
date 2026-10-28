@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from nanogpt.config import Config
-from nanogpt.model import Block
+from centigpt.config import Config
+from centigpt.model import Block
 
 CFG = Config(d_model=32, n_heads=4, max_seq_len=64)
 

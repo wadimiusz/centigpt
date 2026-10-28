@@ -8,9 +8,9 @@ from loguru import logger
 from tokenizers import Tokenizer
 from tqdm.auto import tqdm
 
-from nanogpt.config import Config
-from nanogpt.constants import PROJECT_SEED
-from nanogpt.tokenizer import TokenizerWrapper
+from centigpt.config import Config
+from centigpt.constants import PROJECT_SEED
+from centigpt.tokenizer import TokenizerWrapper
 
 encoding_batch_size = 10_000
 

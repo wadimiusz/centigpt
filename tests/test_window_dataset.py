@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from nanogpt.data.window_dataset import WindowDataset
+from centigpt.data.window_dataset import WindowDataset
 
 W = 8
 

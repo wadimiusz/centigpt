@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from nanogpt.config import Config
+from centigpt.config import Config
 
 
 class CausalMultiheadAttention(nn.Module):

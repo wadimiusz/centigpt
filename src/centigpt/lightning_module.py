@@ -8,8 +8,8 @@ from loguru import logger
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
-from nanogpt.config import Config
-from nanogpt.model import GPT
+from centigpt.config import Config
+from centigpt.model import GPT
 
 
 class LightningModule(L.LightningModule):

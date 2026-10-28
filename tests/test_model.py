@@ -3,8 +3,8 @@ import math
 import pytest
 import torch
 
-from nanogpt.config import Config
-from nanogpt.model import CausalMultiheadAttention
+from centigpt.config import Config
+from centigpt.model import CausalMultiheadAttention
 
 D_MODEL = 32
 N_HEADS = 4

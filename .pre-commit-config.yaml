@@ -1,4 +1,4 @@
-# Хуки pre-commit для nanogpt.
+# Хуки pre-commit для centigpt.
 #
 #   make hooks         установить хуки в .git/hooks
 #   make hooks-run     прогнать всё по всему репозиторию (ПЕРЕЗАПИСЫВАЕТ файлы)

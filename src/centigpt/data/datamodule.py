@@ -4,9 +4,9 @@ import pathlib
 import lightning as L
 from torch.utils.data import DataLoader, Dataset
 
-from nanogpt.config import Config
-from nanogpt.data.memmap import Memmap
-from nanogpt.data.window_dataset import WindowDataset
+from centigpt.config import Config
+from centigpt.data.memmap import Memmap
+from centigpt.data.window_dataset import WindowDataset
 
 
 class DataModule(L.LightningDataModule):

@@ -7,9 +7,9 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.trainers import BpeTrainer
 
-import nanogpt.data.memmap as mm
-from nanogpt.config import Config
-from nanogpt.constants import PROJECT_SEED
+import centigpt.data.memmap as mm
+from centigpt.config import Config
+from centigpt.constants import PROJECT_SEED
 
 N_STORIES = 60
 

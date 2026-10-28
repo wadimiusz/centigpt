@@ -8,9 +8,9 @@ import tyro
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
 
-from nanogpt.config import Config
-from nanogpt.data.datamodule import DataModule
-from nanogpt.lightning_module import LightningModule
+from centigpt.config import Config
+from centigpt.data.datamodule import DataModule
+from centigpt.lightning_module import LightningModule
 
 
 def make_run_name(cfg: Config, prefix: str = "") -> str:

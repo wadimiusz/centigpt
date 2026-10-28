@@ -7,8 +7,8 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.trainers import BpeTrainer
 
-import nanogpt.tokenizer as tokenizer_module
-from nanogpt.config import Config
+import centigpt.tokenizer as tokenizer_module
+from centigpt.config import Config
 
 STORIES = [
     f"Once upon a time there was a cat number {i}. It liked fish." for i in range(60)

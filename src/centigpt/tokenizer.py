@@ -9,7 +9,7 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import ByteLevel
 from tokenizers.trainers import BpeTrainer
 
-from nanogpt.config import Config
+from centigpt.config import Config
 
 
 class TokenizerWrapper:
