@@ -62,23 +62,17 @@ data tokenised on first use, then cached on disk.
 | `src/nanogpt/lightning_module.py` | Training and validation steps, AdamW with warmup and cosine decay |
 | `src/nanogpt/probe.py` | Tools for measuring what trained attention heads do with positions |
 | `src/nanogpt/train.py` | Training entry point (`nanogpt-train`) |
-| `experiments/` | Research experiments built on the model |
 | `tests/` | Tests, one file per module |
 
 ## Experiments
 
-See [`experiments/README.md`](experiments/README.md) for the question, the
-setup and how to run each script.
-
-`experiments/nerode_geometry.py` trains the model on samples from random
-probabilistic automata and asks whether prefixes in the same Myhill–Nerode
-class (prefixes with the same distribution over all continuations) end up
-close together in the residual stream. `experiments/nerode_continuations.py`
-compares prefixes through their common continuations, and
-`experiments/where_errors.py` measures where the trained model's predictions
-diverge from the automaton. `experiments/demo_data.py` exports the data for an
-interactive write-up of these results:
-[Where does a transformer keep its state?](https://wadimiusz.me/nerode/)
+The research experiments that grew out of this model, on whether a transformer
+trained on probabilistic automata keeps the Myhill–Nerode class of a prefix in
+its residual stream, now live in their own repository:
+[nerode](https://github.com/wadimiusz/nerode). It depends on this package,
+pinned to a commit, and carries the history of the former `experiments/`
+directory. The interactive write-up of the results is at
+[wadimiusz.me/nerode](https://wadimiusz.me/nerode/).
 
 ## Checks
 

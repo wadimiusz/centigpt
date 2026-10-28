@@ -18,6 +18,3 @@ wheels/
 tokenized_data/
 
 runs/
-
-# experiment outputs
-experiments/*_out/
