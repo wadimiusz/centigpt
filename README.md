@@ -4,9 +4,14 @@ A GPT-style transformer written from scratch for learning and small experiments:
 causal multi-head attention with RoPE, a SwiGLU MLP, pre-norm blocks with RMSNorm,
 and tied input/output embeddings. Training runs on PyTorch Lightning; data is
 tokenised once with a byte-level BPE tokenizer and read from disk as a memmap.
-An independent from-scratch implementation (RoPE, SwiGLU, RMSNorm, tied
-embeddings, Lightning training loop), not a fork of Karpathy's
-[nanoGPT](https://github.com/karpathy/nanoGPT).
+It is an independent implementation, not a fork of Karpathy's
+[nanoGPT](https://github.com/karpathy/nanoGPT); the repository was called
+`nanogpt` until 28 October 2026.
+
+> **Looking for the Nerode pilot?** The experiments on where a transformer
+> keeps its state, which used to live in `experiments/` here, moved to their
+> own repository: [wadimiusz/nerode](https://github.com/wadimiusz/nerode).
+> Write-up and demo: [wadimiusz.me/nerode](https://wadimiusz.me/nerode/).
 
 **Why this exists.** I wrote this model, its data pipeline and training loop
 from scratch to build intuition for how small language models train
